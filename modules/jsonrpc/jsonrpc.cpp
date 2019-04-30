@@ -41,7 +41,7 @@ JSONRPC::~JSONRPC() {
 
 void JSONRPC::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_scope", "scope", "target"), &JSONRPC::set_scope);
-	ClassDB::bind_method(D_METHOD("process_action", "action", "recurse"), &JSONRPC::process_action);
+	ClassDB::bind_method(D_METHOD("process_action", "action", "recurse"), &JSONRPC::process_action, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("process_string", "action"), &JSONRPC::process_string);
 }
 
