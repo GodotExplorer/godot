@@ -34,9 +34,9 @@
 #include "core/io/resource_loader.h"
 #include "core/os/file_access.h"
 #include "editor/gdscript_highlighter.h"
-#include "language_server/gdscript_language_server.h"
 #include "gdscript.h"
 #include "gdscript_tokenizer.h"
+#include "language_server/gdscript_language_server.h"
 
 GDScriptLanguage *script_language_gd = NULL;
 Ref<ResourceFormatLoaderGDScript> resource_loader_gd;
@@ -132,6 +132,7 @@ static void _editor_init() {
 	gd_export.instance();
 	EditorExport::get_singleton()->add_export_plugin(gd_export);
 	EditorNode::get_singleton()->add_editor_plugin(memnew(GDScriptLanguageServer));
+	register_lsp_types();
 }
 
 #endif

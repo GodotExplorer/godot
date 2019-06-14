@@ -31,18 +31,16 @@
 #ifndef GODOT_JSON_RPC_H
 #define GODOT_JSON_RPC_H
 
-#include "core/variant.h"
 #include "core/object.h"
+#include "core/variant.h"
 
 class JSONRPC : public Object {
 	GDCLASS(JSONRPC, Object)
 
-	Map<String, Object*> method_scopes;
+	Map<String, Object *> method_scopes;
 
 protected:
 	static void _bind_methods();
-	Dictionary make_error(int p_code, const String& p_message) const;
-	Dictionary make_return(const Variant& p_value, const Variant& p_id);
 
 public:
 	JSONRPC();
@@ -56,9 +54,17 @@ public:
 		InternalError = -32603,
 	};
 
-	Variant process_action(const Variant& p_action, bool p_process_arr_elements = false);
-	String process_string(const String& p_input);
+	Dictionary make_response_error(int p_code, const String &p_message, const Variant &p_id = Variant()) const;
+	Dictionary make_response(const Variant &p_value, const Variant &p_id);
+	Dictionary make_notification(const String &p_method, const Variant &p_params);
+	Dictionary make_request(const String &p_method, const Variant &p_params, const Variant &p_id);
 
-	void set_scope(const String& p_scope, Object* p_obj);
+	Variant process_action(const Variant &p_action, bool p_process_arr_elements = false);
+	String process_string(const String &p_input);
+
+	void set_scope(const String &p_scope, Object *p_obj);
 };
+
+VARIANT_ENUM_CAST(JSONRPC::ErrorCode);
+
 #endif

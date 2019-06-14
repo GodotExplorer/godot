@@ -32,20 +32,29 @@
 #include "core/io/json.h"
 
 JSONRPC::JSONRPC() {
-
 }
 
 JSONRPC::~JSONRPC() {
-
 }
 
 void JSONRPC::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_scope", "scope", "target"), &JSONRPC::set_scope);
 	ClassDB::bind_method(D_METHOD("process_action", "action", "recurse"), &JSONRPC::process_action, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("process_string", "action"), &JSONRPC::process_string);
+
+	ClassDB::bind_method(D_METHOD("make_request", "method", "params", "id"), &JSONRPC::make_request);
+	ClassDB::bind_method(D_METHOD("make_response", "result", "id"), &JSONRPC::make_response);
+	ClassDB::bind_method(D_METHOD("make_notification", "method", "params"), &JSONRPC::make_notification);
+	ClassDB::bind_method(D_METHOD("make_response_error", "code", "message", "id"), &JSONRPC::make_response_error, DEFVAL(Variant()));
+
+	BIND_ENUM_CONSTANT(ParseError)
+	BIND_ENUM_CONSTANT(InvalidRequest)
+	BIND_ENUM_CONSTANT(MethodNotFound)
+	BIND_ENUM_CONSTANT(InvalidParams)
+	BIND_ENUM_CONSTANT(InternalError)
 }
 
-Dictionary JSONRPC::make_error(int p_code, const String &p_message) const {
+Dictionary JSONRPC::make_response_error(int p_code, const String &p_message, const Variant &p_id) const {
 	Dictionary dict;
 	dict["jsonrpc"] = "2.0";
 
@@ -54,12 +63,12 @@ Dictionary JSONRPC::make_error(int p_code, const String &p_message) const {
 	err["message"] = p_message;
 
 	dict["error"] = err;
-	dict["id"] = Variant();
+	dict["id"] = p_id;
 
 	return dict;
 }
 
-Dictionary JSONRPC::make_return(const Variant &p_value, const Variant& p_id) {
+Dictionary JSONRPC::make_response(const Variant &p_value, const Variant &p_id) {
 	Dictionary dict;
 	dict["jsonrpc"] = "2.0";
 	dict["id"] = p_id;
@@ -67,11 +76,28 @@ Dictionary JSONRPC::make_return(const Variant &p_value, const Variant& p_id) {
 	return dict;
 }
 
+Dictionary JSONRPC::make_notification(const String &p_method, const Variant &p_params) {
+	Dictionary dict;
+	dict["jsonrpc"] = "2.0";
+	dict["method"] = p_method;
+	dict["params"] = p_params;
+	return dict;
+}
+
+Dictionary JSONRPC::make_request(const String &p_method, const Variant &p_params, const Variant &p_id) {
+	Dictionary dict;
+	dict["jsonrpc"] = "2.0";
+	dict["method"] = p_method;
+	dict["params"] = p_params;
+	dict["id"] = p_id;
+	return dict;
+}
+
 Variant JSONRPC::process_action(const Variant &p_action, bool p_process_arr_elements) {
 	Variant ret;
 	if (p_action.get_type() == Variant::DICTIONARY) {
 		Dictionary dict = p_action;
-		String method =  dict.get("method", "");
+		String method = dict.get("method", "");
 		Array args;
 		if (dict.has("params")) {
 			Variant params = dict.get("params", Variant());
@@ -82,18 +108,23 @@ Variant JSONRPC::process_action(const Variant &p_action, bool p_process_arr_elem
 			}
 		}
 
-		Object * object = this;
+		Object *object = this;
 		if (method_scopes.has(method.get_base_dir())) {
 			object = method_scopes[method.get_base_dir()];
 			method = method.get_file();
 		}
 
+		Variant id;
+		if (dict.has("id")) {
+			id = dict["id"];
+		}
+
 		if (object == NULL || !object->has_method(method)) {
-			ret = make_error(JSONRPC::MethodNotFound, "Method not found");
+			ret = make_response_error(JSONRPC::MethodNotFound, "Method not found", id);
 		} else {
 			Variant call_ret = object->callv(method, args);
-			if (dict.has("id")) {
-				ret = make_return(call_ret, dict["id"]);
+			if (id.get_type() != Variant::NIL) {
+				ret = make_response(call_ret, id);
 			}
 		}
 	} else if (p_action.get_type() == Variant::ARRAY && p_process_arr_elements) {
@@ -102,26 +133,29 @@ Variant JSONRPC::process_action(const Variant &p_action, bool p_process_arr_elem
 		if (size) {
 			Array arr_ret;
 			for (int i = 0; i < size; i++) {
-				const Variant& var = arr.get(i);
+				const Variant &var = arr.get(i);
 				arr_ret.push_back(process_action(var));
 			}
 			ret = arr_ret;
 		} else {
-			ret = make_error(JSONRPC::InvalidRequest, "Invalid Request");
+			ret = make_response_error(JSONRPC::InvalidRequest, "Invalid Request");
 		}
 	} else {
-		ret = make_error(JSONRPC::InvalidRequest, "Invalid Request");
+		ret = make_response_error(JSONRPC::InvalidRequest, "Invalid Request");
 	}
 	return ret;
 }
 
 String JSONRPC::process_string(const String &p_input) {
+
+	if (p_input.empty()) return String();
+
 	Variant ret;
 	Variant input;
 	String err_message;
 	int err_line;
 	if (OK != JSON::parse(p_input, input, err_message, err_line)) {
-		ret = make_error(JSONRPC::ParseError, "Parse error");
+		ret = make_response_error(JSONRPC::ParseError, "Parse error");
 	} else {
 		ret = process_action(input, true);
 	}
