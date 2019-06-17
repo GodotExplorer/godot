@@ -1,4 +1,35 @@
+/*************************************************************************/
+/*  gdscript_text_document.cpp                                           */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #include "gdscript_text_document.h"
+#include "../gdscript.h"
 #include "gdscript_language_protocol.h"
 
 void GDScriptTextDocument::_bind_methods() {
@@ -40,13 +71,13 @@ lsp::TextDocumentItem GDScriptTextDocument::load_document_item(const Variant &p_
 
 Array GDScriptTextDocument::documentSymbol(const Dictionary &p_params) {
 	Dictionary params = p_params["textDocument"];
-	String path = params["uri"];
+	String uri = params["uri"];
+	String path = GDScriptLanguageProtocol::get_singleton()->get_workspace().get_file_path(uri);
 	Array arr;
 	if (const Map<String, ExtendGDScriptParser *>::Element *parser = GDScriptLanguageProtocol::get_singleton()->get_workspace().scripts.find(path)) {
 		Vector<lsp::SymbolInformation> list;
-		parser->get()->get_symbols().symbol_tree_as_list(path, list);
-		uint32_t size = list.size();
-		for (size_t i = 0; i < size; i++) {
+		parser->get()->get_symbols().symbol_tree_as_list(uri, list);
+		for (int i = 0; i < list.size(); i++) {
 			arr.push_back(list[i].to_json());
 		}
 	}
@@ -63,8 +94,8 @@ Dictionary GDScriptTextDocument::completion(const Dictionary &p_params) {
 
 	const int MAX_COMPLETION_LIMIT = 200;
 	lsp::CompletionList completion_list;
-	completion_list.isIncomplete = (options.size() > 0);
-	for (int i = 0; i < ((options.size() > MAX_COMPLETION_LIMIT) ? MAX_COMPLETION_LIMIT : options.size()); i++) {
+	completion_list.isIncomplete = (options.size() > 1);
+	for (int i = 0; i < min(options.size(), MAX_COMPLETION_LIMIT); i++) {
 		lsp::CompletionItem item;
 		item.label = options[i].display;
 		switch (options[i].kind) {
@@ -127,6 +158,7 @@ Variant GDScriptTextDocument::hover(const Dictionary &p_params) {
 	return ret;
 }
 
-void GDScriptTextDocument::sync_script_content(const String &p_path, const String &p_content) {
-	GDScriptLanguageProtocol::get_singleton()->get_workspace().parse_script(p_path, p_content);
+void GDScriptTextDocument::sync_script_content(const String &p_uri, const String &p_content) {
+	String path = GDScriptLanguageProtocol::get_singleton()->get_workspace().get_file_path(p_uri);
+	GDScriptLanguageProtocol::get_singleton()->get_workspace().parse_script(path, p_content);
 }

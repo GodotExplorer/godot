@@ -173,6 +173,8 @@ protected:
 	void drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from);
 
 public:
+	static Node *_find_node_for_script(Node *p_base, Node *p_current, const Ref<Script> &p_script);
+
 	void _update_connected_methods();
 
 	virtual void add_syntax_highlighter(SyntaxHighlighter *p_highlighter);

@@ -1,3 +1,33 @@
+/*************************************************************************/
+/*  gdscript_language_protocol.cpp                                       */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #include "gdscript_language_protocol.h"
 #include "core/io/json.h"
 #include "core/os/copymem.h"
@@ -5,15 +35,14 @@
 
 GDScriptLanguageProtocol *GDScriptLanguageProtocol::singleton = NULL;
 
-void GDScriptLanguageProtocol::on_data_received(int id) {
-	lastest_client_id = id;
-	Ref<WebSocketPeer> peer = server->get_peer(id);
+void GDScriptLanguageProtocol::on_data_received(int p_id) {
+	lastest_client_id = p_id;
+	Ref<WebSocketPeer> peer = server->get_peer(p_id);
 	PoolByteArray data;
 	if (OK == peer->get_packet_buffer(data)) {
 		String message;
-		message.parse_utf8((const char *)data.read().ptr());
+		message.parse_utf8((const char *)data.read().ptr(), data.size());
 		if (message.begins_with("Content-Length:")) return;
-		print_line(message);
 		String output = process_message(message);
 		if (!output.empty()) {
 			CharString charstr = output.utf8();
@@ -22,16 +51,16 @@ void GDScriptLanguageProtocol::on_data_received(int id) {
 	}
 }
 
-void GDScriptLanguageProtocol::on_client_connected(int id, const String &protocal) {
-	clients.set(id, server->get_peer(id));
+void GDScriptLanguageProtocol::on_client_connected(int p_id, const String &p_protocal) {
+	clients.set(p_id, server->get_peer(p_id));
 }
 
-void GDScriptLanguageProtocol::on_client_disconnected(int id, bool was_clean_close) {
-	clients.erase(id);
+void GDScriptLanguageProtocol::on_client_disconnected(int p_id, bool p_was_clean_close) {
+	clients.erase(p_id);
 }
 
-String GDScriptLanguageProtocol::process_message(const String &text) {
-	String ret = process_string(text);
+String GDScriptLanguageProtocol::process_message(const String &p_text) {
+	String ret = process_string(p_text);
 	if (ret.empty()) {
 		return ret;
 	} else {
@@ -39,15 +68,15 @@ String GDScriptLanguageProtocol::process_message(const String &text) {
 	}
 }
 
-String GDScriptLanguageProtocol::format_output(const String &text) {
+String GDScriptLanguageProtocol::format_output(const String &p_text) {
 
 	String header = "Content-Length: ";
-	CharString charstr = text.utf8();
+	CharString charstr = p_text.utf8();
 	size_t len = charstr.length();
 	header += itos(len);
 	header += "\r\n\r\n";
 
-	return header + text;
+	return header + p_text;
 }
 
 void GDScriptLanguageProtocol::_bind_methods() {
@@ -58,7 +87,7 @@ void GDScriptLanguageProtocol::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("on_client_disconnected"), &GDScriptLanguageProtocol::on_client_disconnected);
 }
 
-Dictionary GDScriptLanguageProtocol::initialize(const Dictionary &params) {
+Dictionary GDScriptLanguageProtocol::initialize(const Dictionary &p_params) {
 
 	lsp::InitializeResult ret;
 
@@ -84,14 +113,14 @@ void GDScriptLanguageProtocol::poll() {
 	server->poll();
 }
 
-Error GDScriptLanguageProtocol::start(int port) {
+Error GDScriptLanguageProtocol::start(int p_port) {
 	if (server == NULL) {
 		server = dynamic_cast<WebSocketServer *>(ClassDB::instance("WebSocketServer"));
 		server->connect("data_received", this, "on_data_received");
 		server->connect("client_connected", this, "on_client_connected");
 		server->connect("client_disconnected", this, "on_client_disconnected");
 	}
-	return server->listen(port);
+	return server->listen(p_port);
 }
 
 void GDScriptLanguageProtocol::stop() {
@@ -104,10 +133,11 @@ void GDScriptLanguageProtocol::notify_all_clients(const String &p_method, const 
 	String msg = JSON::print(message);
 	msg = format_output(msg);
 	CharString charstr = msg.utf8();
-	const int *p_id = NULL;
-	while ((p_id = clients.next(p_id))) {
+	const int *p_id = clients.next(NULL);
+	while (p_id != NULL) {
 		Ref<WebSocketPeer> peer = clients.get(*p_id);
 		(*peer)->put_packet((const uint8_t *)charstr.ptr(), charstr.length());
+		p_id = clients.next(p_id);
 	}
 }
 

@@ -1,3 +1,33 @@
+/*************************************************************************/
+/*  lsp.hpp                                                              */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #ifndef GODOT_LSP_H
 #define GODOT_LSP_H
 
@@ -8,6 +38,26 @@ namespace lsp {
 typedef String DocumentUri;
 
 /**
+ * Text documents are identified using a URI. On the protocol level, URIs are passed as strings.
+ */
+struct TextDocumentIdentifier {
+	/**
+	 * The text document's URI.
+	 */
+	DocumentUri uri;
+
+	void load(const Dictionary &p_params) {
+		uri = p_params["uri"];
+	}
+
+	Dictionary to_json() const {
+		Dictionary dict;
+		dict["uri"] = uri;
+		return dict;
+	}
+};
+
+/**
  * Position in a text document expressed as zero-based line and zero-based character offset.
  * A position is between two characters like an ‘insert’ cursor in a editor.
  * Special values like for example -1 to denote the end of a line are not supported.
@@ -16,7 +66,7 @@ struct Position {
 	/**
 	 * Line position in a document (zero-based).
 	 */
-	int line;
+	int line = 0;
 
 	/**
 	 * Character offset on a line in a document (zero-based). Assuming that the line is
@@ -26,11 +76,7 @@ struct Position {
 	 * If the character value is greater than the line length it defaults back to the
 	 * line length.
 	 */
-	int character;
-
-	Position() :
-			line(0),
-			character(0) {}
+	int character = 0;
 
 	void load(const Dictionary &p_params) {
 		line = p_params["line"];
@@ -105,7 +151,7 @@ struct LocationLink {
 	 * Used as the underlined span for mouse interaction. Defaults to the word range at
 	 * the mouse position.
 	 */
-	Range *originSelectionRange;
+	Range *originSelectionRange = NULL;
 
 	/**
 	 * The target resource identifier of this link.
@@ -124,30 +170,27 @@ struct LocationLink {
 	 * Must be contained by the the `targetRange`. See also `DocumentSymbol#range`
 	 */
 	Range targetSelectionRange;
-
-	LocationLink() :
-			originSelectionRange(NULL) {}
 };
 
-enum TextDocumentSyncKind {
-	/**
+namespace TextDocumentSyncKind {
+/**
 	 * Documents should not be synced at all.
 	 */
-	None = 0,
+static const int None = 0;
 
-	/**
+/**
 	 * Documents are synced by always sending the full content
 	 * of the document.
 	 */
-	Full = 1,
+static const int Full = 1;
 
-	/**
+/**
 	 * Documents are synced by sending the full content on open.
 	 * After that only incremental updates to the document are
 	 * send.
 	 */
-	Incremental = 2,
-};
+static const int Incremental = 2;
+}; // namespace TextDocumentSyncKind
 
 /**
  * Completion options.
@@ -157,15 +200,14 @@ struct CompletionOptions {
 	 * The server provides support to resolve additional
 	 * information for a completion item.
 	 */
-	bool resolveProvider;
+	bool resolveProvider = true;
 
 	/**
 	 * The characters that trigger completion automatically.
 	 */
 	Vector<String> triggerCharacters;
 
-	CompletionOptions() :
-			resolveProvider(true) {
+	CompletionOptions() {
 		triggerCharacters.push_back(".");
 		triggerCharacters.push_back("$");
 		triggerCharacters.push_back("'");
@@ -206,10 +248,7 @@ struct CodeLensOptions {
 	/**
 	 * Code lens has a resolve provider as well.
 	 */
-	bool resolveProvider;
-
-	CodeLensOptions() :
-			resolveProvider(false) {}
+	bool resolveProvider = false;
 
 	Dictionary to_json() {
 		Dictionary dict;
@@ -225,10 +264,7 @@ struct RenameOptions {
 	/**
 	 * Renames should be checked and tested before being executed.
 	 */
-	bool prepareProvider;
-
-	RenameOptions() :
-			prepareProvider(false) {}
+	bool prepareProvider = false;
 
 	Dictionary to_json() {
 		Dictionary dict;
@@ -244,10 +280,7 @@ struct DocumentLinkOptions {
 	/**
 	 * Document links have a resolve provider as well.
 	 */
-	bool resolveProvider;
-
-	DocumentLinkOptions() :
-			resolveProvider(false) {}
+	bool resolveProvider = false;
 
 	Dictionary to_json() {
 		Dictionary dict;
@@ -279,10 +312,7 @@ struct SaveOptions {
 	/**
 	 * The client is supposed to include the content on save.
 	 */
-	bool includeText;
-
-	SaveOptions() :
-			includeText(true) {}
+	bool includeText = true;
 
 	Dictionary to_json() {
 		Dictionary dict;
@@ -316,25 +346,25 @@ struct TextDocumentSyncOptions {
 	 * Open and close notifications are sent to the server. If omitted open close notification should not
 	 * be sent.
 	 */
-	bool openClose;
+	bool openClose = true;
 
 	/**
 	 * Change notifications are sent to the server. See TextDocumentSyncKind.None, TextDocumentSyncKind.Full
 	 * and TextDocumentSyncKind.Incremental. If omitted it defaults to TextDocumentSyncKind.None.
 	 */
-	TextDocumentSyncKind change;
+	int change = TextDocumentSyncKind::Full;
 
 	/**
 	 * If present will save notifications are sent to the server. If omitted the notification should not be
 	 * sent.
 	 */
-	bool willSave;
+	bool willSave = false;
 
 	/**
 	 * If present will save wait until requests are sent to the server. If omitted the request should not be
 	 * sent.
 	 */
-	bool willSaveWaitUntil;
+	bool willSaveWaitUntil = false;
 
 	/**
 	 * If present save notifications are sent to the server. If omitted the notification should not be
@@ -342,17 +372,12 @@ struct TextDocumentSyncOptions {
 	 */
 	SaveOptions save;
 
-	TextDocumentSyncOptions() :
-			openClose(true),
-			willSave(false),
-			willSaveWaitUntil(false) {}
-
 	Dictionary to_json() {
 		Dictionary dict;
 		dict["willSaveWaitUntil"] = willSaveWaitUntil;
 		dict["willSave"] = willSave;
 		dict["openClose"] = openClose;
-		dict["change"] = (int)change;
+		dict["change"] = change;
 		dict["change"] = save.to_json();
 		return dict;
 	}
@@ -457,24 +482,24 @@ struct TextDocumentContentChangeEvent {
 	}
 };
 
-enum DiagnosticSeverity {
-	/**
+namespace DiagnosticSeverity {
+/**
 	 * Reports an error.
 	 */
-	Error = 1,
-	/**
+static const int Error = 1;
+/**
 	 * Reports a warning.
 	 */
-	Warning = 2,
-	/**
+static const int Warning = 2;
+/**
 	 * Reports an information.
 	 */
-	Information = 3,
-	/**
+static const int Information = 3;
+/**
 	 * Reports a hint.
 	 */
-	Hint = 4,
-};
+static const int Hint = 4;
+}; // namespace DiagnosticSeverity
 
 /**
  * Represents a related message and source code location for a diagnostic. This should be
@@ -514,7 +539,7 @@ struct Diagnostic {
 	 * The diagnostic's severity. Can be omitted. If omitted it is up to the
 	 * client to interpret diagnostics as error, warning, info or hint.
 	 */
-	DiagnosticSeverity severity;
+	int severity;
 
 	/**
 	 * The diagnostic's code, which might appear in the user interface.
@@ -602,12 +627,12 @@ struct SymbolInformation {
 	/**
 	 * The kind of this symbol.
 	 */
-	int kind;
+	int kind = SymbolKind::File;
 
 	/**
 	 * Indicates if this symbol is deprecated.
 	 */
-	bool deprecated;
+	bool deprecated = false;
 
 	/**
 	 * The location of this symbol. The location's range is used by a tool
@@ -629,10 +654,6 @@ struct SymbolInformation {
 	 * symbols.
 	 */
 	String containerName;
-
-	SymbolInformation() :
-			kind(SymbolKind::File),
-			deprecated(false) {}
 
 	Dictionary to_json() const {
 		Dictionary dict;
@@ -666,12 +687,12 @@ struct DocumentSymbol {
 	/**
 	 * The kind of this symbol.
 	 */
-	int kind;
+	int kind = SymbolKind::File;
 
 	/**
 	 * Indicates if this symbol is deprecated.
 	 */
-	bool deprecated;
+	bool deprecated = false;
 
 	/**
 	 * The range enclosing this symbol not including leading/trailing whitespace but everything else
@@ -691,10 +712,6 @@ struct DocumentSymbol {
 	 */
 	Vector<DocumentSymbol> children;
 
-	DocumentSymbol() :
-			kind(SymbolKind::File),
-			deprecated(false) {}
-
 	Dictionary to_json() const {
 		Dictionary dict;
 		dict["name"] = name;
@@ -705,8 +722,7 @@ struct DocumentSymbol {
 		dict["selectionRange"] = selectionRange.to_json();
 		Array arr;
 		arr.resize(children.size());
-		uint32_t size = children.size();
-		for (size_t i = 0; i < size; i++) {
+		for (int i = 0; i < children.size(); i++) {
 			arr[i] = children[i].to_json();
 		}
 		dict["children"] = arr;
@@ -722,8 +738,7 @@ struct DocumentSymbol {
 		si.location.uri = p_uri;
 		si.location.range = range;
 		r_list.push_back(si);
-		uint32_t size = children.size();
-		for (size_t i = 0; i < size; i++) {
+		for (int i = 0; i < children.size(); i++) {
 			children[i].symbol_tree_as_list(p_uri, r_list, name);
 		}
 	}
@@ -812,13 +827,13 @@ static const int TypeParameter = 25;
  * Defines whether the insert text in a completion item should be interpreted as
  * plain text or a snippet.
  */
-enum InsertTextFormat {
-	/**
+namespace InsertTextFormat {
+/**
 	 * The primary text to be inserted is treated as a plain string.
 	 */
-	PlainText = 1,
+static const int PlainText = 1;
 
-	/**
+/**
 	 * The primary text to be inserted is treated as a snippet.
 	 *
 	 * A snippet can define tab stops and placeholders with `$1`, `$2`
@@ -826,8 +841,8 @@ enum InsertTextFormat {
 	 * the end of the snippet. Placeholders with equal identifiers are linked,
 	 * that is typing in one will update others too.
 	 */
-	Snippet = 2
-};
+static const int Snippet = 2;
+}; // namespace InsertTextFormat
 
 struct CompletionItem {
 	/**
@@ -858,7 +873,7 @@ struct CompletionItem {
 	/**
 	 * Indicates if this item is deprecated.
 	 */
-	bool deprecated;
+	bool deprecated = false;
 
 	/**
 	 * Select this item when showing.
@@ -867,7 +882,7 @@ struct CompletionItem {
 	 * tool / client decides which item that is. The rule is that the *first*
 	 * item of those that match best is selected.
 	 */
-	bool preselect;
+	bool preselect = false;
 
 	/**
 	 * A string that should be used when comparing this item
@@ -900,7 +915,7 @@ struct CompletionItem {
 	 * The format of the insert text. The format applies to both the `insertText` property
 	 * and the `newText` property of a provided `textEdit`.
 	 */
-	InsertTextFormat insertTextFormat;
+	int insertTextFormat;
 
 	/**
 	 * An edit which is applied to a document when selecting this completion. When an edit is provided the value of
@@ -942,13 +957,10 @@ struct CompletionItem {
 	 */
 	Variant data;
 
-	CompletionItem() :
-			deprecated(false),
-			preselect(false) {}
-
 	Dictionary to_json() const {
 		Dictionary dict;
 		dict["label"] = label;
+		dict["kind"] = kind;
 		dict["kind"] = kind;
 		dict["detail"] = detail;
 		dict["documentation"] = documentation;
@@ -1021,37 +1033,29 @@ struct FoldingRange {
 	/**
 	 * The zero-based line number from where the folded range starts.
 	 */
-	int startLine;
+	int startLine = 0;
 
 	/**
 	 * The zero-based character offset from where the folded range starts. If not defined, defaults to the length of the start line.
 	 */
-	int startCharacter;
+	int startCharacter = 0;
 
 	/**
 	 * The zero-based line number where the folded range ends.
 	 */
-	int endLine;
+	int endLine = 0;
 
 	/**
 	 * The zero-based character offset before the folded range ends. If not defined, defaults to the length of the end line.
 	 */
-	int endCharacter;
+	int endCharacter = 0;
 
 	/**
 	 * Describes the kind of the folding range such as `comment' or 'region'. The kind
 	 * is used to categorize folding ranges and used by commands like 'Fold all comments'. See
 	 * [FoldingRangeKind](#FoldingRangeKind) for an enumeration of standardized kinds.
 	 */
-	String kind;
-
-	FoldingRange() :
-			startLine(0),
-			startCharacter(0),
-			endLine(0),
-			endCharacter(0) {
-		kind = FoldingRangeKind::Region;
-	}
+	String kind = FoldingRangeKind::Region;
 
 	Dictionary to_json() const {
 		Dictionary dict;
@@ -1060,6 +1064,74 @@ struct FoldingRange {
 		dict["endLine"] = endLine;
 		dict["endCharacter"] = endCharacter;
 		return dict;
+	}
+};
+
+/**
+ * How a completion was triggered
+ */
+namespace CompletionTriggerKind {
+/**
+	 * Completion was triggered by typing an identifier (24x7 code
+	 * complete), manual invocation (e.g Ctrl+Space) or via API.
+	 */
+static const int Invoked = 1;
+
+/**
+	 * Completion was triggered by a trigger character specified by
+	 * the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
+	 */
+static const int TriggerCharacter = 2;
+
+/**
+	 * Completion was re-triggered as the current completion list is incomplete.
+	 */
+static const int TriggerForIncompleteCompletions = 3;
+} // namespace CompletionTriggerKind
+
+/**
+ * Contains additional information about the context in which a completion request is triggered.
+ */
+struct CompletionContext {
+	/**
+	* How the completion was triggered.
+	*/
+	int triggerKind = CompletionTriggerKind::TriggerCharacter;
+
+	/**
+	 * The trigger character (a single character) that has trigger code complete.
+	 * Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
+	 */
+	String triggerCharacter;
+
+	void load(const Dictionary &p_params) {
+		triggerKind = int(p_params["triggerKind"]);
+		triggerCharacter = p_params["triggerCharacter"];
+	}
+};
+
+struct CompletionParams {
+
+	/**
+		 * The text document.
+		 */
+	TextDocumentIdentifier textDocument;
+
+	/**
+		 * The position inside the text document.
+		 */
+	Position position;
+
+	/**
+	 * The completion context. This is only available if the client specifies
+	 * to send this using `ClientCapabilities.textDocument.completion.contextSupport === true`
+	 */
+	CompletionContext context;
+
+	void load(const Dictionary &p_params) {
+		textDocument.load(p_params["textDocument"]);
+		position.load(p_params["position"]);
+		context.load(p_params["context"]);
 	}
 };
 
@@ -1073,7 +1145,7 @@ struct ServerCapabilities {
 	/**
 	 * The server provides hover support.
 	 */
-	bool hoverProvider;
+	bool hoverProvider = true;
 
 	/**
 	 * The server provides completion support.
@@ -1088,48 +1160,48 @@ struct ServerCapabilities {
 	/**
 	 * The server provides goto definition support.
 	 */
-	bool definitionProvider;
+	bool definitionProvider = false;
 
 	/**
 	 * The server provides Goto Type Definition support.
 	 *
 	 * Since 3.6.0
 	 */
-	bool typeDefinitionProvider;
+	bool typeDefinitionProvider = false;
 
 	/**
 	 * The server provides Goto Implementation support.
 	 *
 	 * Since 3.6.0
 	 */
-	bool implementationProvider;
+	bool implementationProvider = false;
 
 	/**
 	 * The server provides find references support.
 	 */
-	bool referencesProvider;
+	bool referencesProvider = false;
 
 	/**
 	 * The server provides document highlight support.
 	 */
-	bool documentHighlightProvider;
+	bool documentHighlightProvider = false;
 
 	/**
 	 * The server provides document symbol support.
 	 */
-	bool documentSymbolProvider;
+	bool documentSymbolProvider = true;
 
 	/**
 	 * The server provides workspace symbol support.
 	 */
-	bool workspaceSymbolProvider;
+	bool workspaceSymbolProvider = true;
 
 	/**
 	 * The server provides code actions. The `CodeActionOptions` return type is only
 	 * valid if the client signals code action literal support via the property
 	 * `textDocument.codeAction.codeActionLiteralSupport`.
 	 */
-	bool codeActionProvider;
+	bool codeActionProvider = false;
 
 	/**
 	 * The server provides code lens.
@@ -1139,12 +1211,12 @@ struct ServerCapabilities {
 	/**
 	 * The server provides document formatting.
 	 */
-	bool documentFormattingProvider;
+	bool documentFormattingProvider = false;
 
 	/**
 	 * The server provides document range formatting.
 	 */
-	bool documentRangeFormattingProvider;
+	bool documentRangeFormattingProvider = false;
 
 	/**
 	 * The server provides document formatting on typing.
@@ -1182,25 +1254,12 @@ struct ServerCapabilities {
 	 *
 	 * Since 3.14.0
 	 */
-	bool declarationProvider;
+	bool declarationProvider = true;
 
 	/**
 	 * The server provides execute command support.
 	 */
 	ExecuteCommandOptions executeCommandProvider;
-
-	ServerCapabilities() :
-			hoverProvider(true),
-			definitionProvider(false),
-			typeDefinitionProvider(false),
-			implementationProvider(false),
-			referencesProvider(false),
-			documentHighlightProvider(false),
-			documentSymbolProvider(false),
-			workspaceSymbolProvider(true),
-			codeActionProvider(false),
-			documentRangeFormattingProvider(false),
-			declarationProvider(true) {}
 
 	Dictionary to_json() {
 		Dictionary dict;

@@ -650,7 +650,7 @@ static Vector<Node *> _find_all_node_for_script(Node *p_base, Node *p_current, c
 	return nodes;
 }
 
-static Node *_find_node_for_script(Node *p_base, Node *p_current, const Ref<Script> &p_script) {
+Node *ScriptTextEditor::_find_node_for_script(Node *p_base, Node *p_current, const Ref<Script> &p_script) {
 
 	if (p_current->get_owner() != p_base && p_base != p_current)
 		return NULL;

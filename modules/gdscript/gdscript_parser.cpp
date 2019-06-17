@@ -1995,7 +1995,6 @@ GDScriptParser::Node *GDScriptParser::_reduce_expression(Node *p_node, bool p_to
 				}
 			}
 
-			ERR_FAIL_V(op);
 		} break;
 		default: {
 			return p_node;
@@ -3369,7 +3368,7 @@ void GDScriptParser::_parse_extends(ClassNode *p_class) {
 		return;
 	}
 
-	if (!p_class->constant_expressions.empty() || !p_class->subclasses.empty() || !p_class->functions.empty() || !p_class->variables.empty()) {
+	if (!p_class->constant_expressions.empty() || !p_class->subclasses.empty() || !p_class->functions.empty() || !p_class->variables.empty() || p_class->classname_used) {
 
 		_set_error("'extends' must be used before anything else.");
 		return;
@@ -3497,7 +3496,7 @@ void GDScriptParser::_parse_class(ClassNode *p_class) {
 					_set_error("'class_name' is only valid for the main class namespace.");
 					return;
 				}
-				if (self_path.empty()) {
+				if (self_path.begins_with("res://") && self_path.find("::") != -1) {
 					_set_error("'class_name' not allowed in built-in scripts.");
 					return;
 				}
@@ -3506,6 +3505,12 @@ void GDScriptParser::_parse_class(ClassNode *p_class) {
 					_set_error("'class_name' syntax: 'class_name <UniqueName>'");
 					return;
 				}
+				if (p_class->classname_used) {
+					_set_error("'class_name' already used for this class.");
+					return;
+				}
+
+				p_class->classname_used = true;
 
 				p_class->name = tokenizer->get_token_identifier(1);
 
@@ -4019,7 +4024,7 @@ void GDScriptParser::_parse_class(ClassNode *p_class) {
 
 										if (tokenizer->get_token() == GDScriptTokenizer::TK_PARENTHESIS_CLOSE) {
 											ERR_EXPLAIN("Exporting bit flags hint requires string constants.");
-											WARN_DEPRECATED
+											WARN_DEPRECATED;
 											break;
 										}
 										if (tokenizer->get_token() != GDScriptTokenizer::TK_COMMA) {
@@ -4059,6 +4064,50 @@ void GDScriptParser::_parse_class(ClassNode *p_class) {
 											tokenizer->advance();
 										}
 
+										break;
+									}
+
+									if (tokenizer->get_token() == GDScriptTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier() == "LAYERS_2D_RENDER") {
+
+										tokenizer->advance();
+										if (tokenizer->get_token() != GDScriptTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in layers 2D render hint.");
+											return;
+										}
+										current_export.hint = PROPERTY_HINT_LAYERS_2D_RENDER;
+										break;
+									}
+
+									if (tokenizer->get_token() == GDScriptTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier() == "LAYERS_2D_PHYSICS") {
+
+										tokenizer->advance();
+										if (tokenizer->get_token() != GDScriptTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in layers 2D physics hint.");
+											return;
+										}
+										current_export.hint = PROPERTY_HINT_LAYERS_2D_PHYSICS;
+										break;
+									}
+
+									if (tokenizer->get_token() == GDScriptTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier() == "LAYERS_3D_RENDER") {
+
+										tokenizer->advance();
+										if (tokenizer->get_token() != GDScriptTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in layers 3D render hint.");
+											return;
+										}
+										current_export.hint = PROPERTY_HINT_LAYERS_3D_RENDER;
+										break;
+									}
+
+									if (tokenizer->get_token() == GDScriptTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier() == "LAYERS_3D_PHYSICS") {
+
+										tokenizer->advance();
+										if (tokenizer->get_token() != GDScriptTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in layers 3D physics hint.");
+											return;
+										}
+										current_export.hint = PROPERTY_HINT_LAYERS_3D_PHYSICS;
 										break;
 									}
 
@@ -5248,6 +5297,7 @@ void GDScriptParser::_determine_inheritance(ClassNode *p_class) {
 			if (base_script.is_valid()) {
 
 				String ident = base;
+				Ref<GDScript> find_subclass = base_script;
 
 				for (int i = extend_iter; i < p_class->extends_class.size(); i++) {
 
@@ -5257,7 +5307,7 @@ void GDScriptParser::_determine_inheritance(ClassNode *p_class) {
 
 					if (base_script->get_subclasses().has(subclass)) {
 
-						base_script = base_script->get_subclasses()[subclass];
+						find_subclass = base_script->get_subclasses()[subclass];
 					} else if (base_script->get_constants().has(subclass)) {
 
 						Ref<GDScript> new_base_class = base_script->get_constants()[subclass];
@@ -5265,7 +5315,7 @@ void GDScriptParser::_determine_inheritance(ClassNode *p_class) {
 							_set_error("Constant is not a class: " + ident, p_class->line);
 							return;
 						}
-						base_script = new_base_class;
+						find_subclass = new_base_class;
 					} else {
 
 						_set_error("Could not find subclass: " + ident, p_class->line);
@@ -5273,7 +5323,7 @@ void GDScriptParser::_determine_inheritance(ClassNode *p_class) {
 					}
 				}
 
-				script = base_script;
+				script = find_subclass;
 
 			} else if (!base_class) {
 
@@ -6014,7 +6064,11 @@ bool GDScriptParser::_is_type_compatible(const DataType &p_container, const Data
 }
 
 GDScriptParser::DataType GDScriptParser::_reduce_node_type(Node *p_node) {
+#ifdef DEBUG_ENABLED
+	if (p_node->get_datatype().has_type && p_node->type != Node::TYPE_ARRAY && p_node->type != Node::TYPE_DICTIONARY) {
+#else
 	if (p_node->get_datatype().has_type) {
+#endif
 		return p_node->get_datatype();
 	}
 
@@ -7473,7 +7527,7 @@ void GDScriptParser::_check_class_level_types(ClassNode *p_class) {
 						return;
 					}
 
-					// Replace assignment with implict conversion
+					// Replace assignment with implicit conversion
 					BuiltInFunctionNode *convert = alloc_node<BuiltInFunctionNode>();
 					convert->line = v.line;
 					convert->function = GDScriptFunctions::TYPE_CONVERT;
@@ -7837,14 +7891,14 @@ void GDScriptParser::_check_block_types(BlockNode *p_block) {
 						if (_is_type_compatible(assign_type, lv->datatype)) {
 							_mark_line_as_unsafe(lv->line);
 						} else {
-							// Try implict conversion
+							// Try implicit conversion
 							if (lv->datatype.kind != DataType::BUILTIN || !_is_type_compatible(lv->datatype, assign_type, true)) {
 								_set_error("Assigned value type (" + assign_type.to_string() + ") doesn't match the variable's type (" +
 												   lv->datatype.to_string() + ").",
 										lv->line);
 								return;
 							}
-							// Replace assignment with implict conversion
+							// Replace assignment with implicit conversion
 							BuiltInFunctionNode *convert = alloc_node<BuiltInFunctionNode>();
 							convert->line = lv->line;
 							convert->function = GDScriptFunctions::TYPE_CONVERT;
@@ -7968,14 +8022,14 @@ void GDScriptParser::_check_block_types(BlockNode *p_block) {
 							if (_is_type_compatible(rh_type, lh_type)) {
 								_mark_line_as_unsafe(op->line);
 							} else {
-								// Try implict conversion
+								// Try implicit conversion
 								if (lh_type.kind != DataType::BUILTIN || !_is_type_compatible(lh_type, rh_type, true)) {
 									_set_error("Assigned value type (" + rh_type.to_string() + ") doesn't match the variable's type (" +
 													   lh_type.to_string() + ").",
 											op->line);
 									return;
 								}
-								// Replace assignment with implict conversion
+								// Replace assignment with implicit conversion
 								BuiltInFunctionNode *convert = alloc_node<BuiltInFunctionNode>();
 								convert->line = op->line;
 								convert->function = GDScriptFunctions::TYPE_CONVERT;

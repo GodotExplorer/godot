@@ -1,6 +1,37 @@
+/*************************************************************************/
+/*  gdscript_workspace.cpp                                               */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #include "gdscript_workspace.h"
 #include "../gdscript.h"
 #include "../gdscript_parser.h"
+#include "core/project_settings.h"
 #include "gdscript_language_protocol.h"
 
 void GDScriptWorkspace::_bind_methods() {
@@ -45,28 +76,12 @@ Array GDScriptWorkspace::symbol(const Dictionary &p_params) {
 	return arr;
 }
 
-static Node *_find_node_for_script(Node *p_base, Node *p_current, const Ref<Script> &p_script) {
-
-	if (p_current->get_owner() != p_base && p_base != p_current)
-		return NULL;
-	Ref<Script> c = p_current->get_script();
-	if (c == p_script)
-		return p_current;
-	for (int i = 0; i < p_current->get_child_count(); i++) {
-		Node *found = _find_node_for_script(p_base, p_current->get_child(i), p_script);
-		if (found)
-			return found;
-	}
-
-	return NULL;
-}
-
 Error GDScriptWorkspace::parse_script(const String &p_path, const String &p_content) {
 	ExtendGDScriptParser *parser = memnew(ExtendGDScriptParser);
 	Error err = parser->parse(p_content, p_path);
 
-	last_file_path = p_path;
-	last_content = p_content;
+	active_file_path = p_path;
+	active_content = p_content;
 
 	Map<String, ExtendGDScriptParser *>::Element *last_parser = parse_results.find(p_path);
 	Map<String, ExtendGDScriptParser *>::Element *last_script = scripts.find(p_path);
@@ -117,27 +132,33 @@ String GDScriptWorkspace::add_cursor_to_script(String &p_content, const int &p_c
 	return p_content.substr(line_beginning_counter, index_counter - line_beginning_counter + 1);
 }
 
-String GDScriptWorkspace::convert_to_relative_path(String p_path) {
-	String local_path = (p_path.substr(7, p_path.size() - 7)); // removes 'file://' from it
-	String res_path = ProjectSettings::get_singleton()->get_resource_path();
-	int index_counter = 0;
-	while (res_path[index_counter] == local_path[index_counter]) {
-		index_counter++;
-	}
+String GDScriptWorkspace::get_file_path(const String &p_uri) const {
+	String path = p_uri.replace("file://", "").http_unescape();
+	path = path.replace(root + "/", "res://");
+	return ProjectSettings::get_singleton()->localize_path(path);
+}
 
-	local_path = "res:/" + local_path.substr(index_counter, local_path.size() - index_counter);
-	return local_path;
+String GDScriptWorkspace::get_file_uri(const String &p_path) const {
+	String path = ProjectSettings::get_singleton()->globalize_path(p_path);
+	return "file://" + path;
 }
 
 Vector<ScriptCodeCompletionOption> GDScriptWorkspace::fetch_completion(const int &p_cur_line, const int &p_cur_char) {
 	Node *base = EditorNode::get_singleton()->get_tree()->get_edited_scene_root();
+	Vector<ScriptCodeCompletionOption> completion_options;
 
-	String p_content = last_content;
-	String relative_path = convert_to_relative_path(last_file_path);
+	String p_content = active_content;
+	if (!active_file_path.is_abs_path()) {
+		return completion_options;
+	}
+	String relative_path = get_file_path(active_file_path);
 
 	RES script = ResourceLoader::load(relative_path);
+	if (script == NULL) {
+		return completion_options;
+	}
 	if (base) {
-		base = _find_node_for_script(base, base, script);
+		base = ScriptTextEditor::_find_node_for_script(base, base, script);
 	}
 
 	String intellisense_word = add_cursor_to_script(p_content, p_cur_line, p_cur_char);
@@ -147,10 +168,7 @@ Vector<ScriptCodeCompletionOption> GDScriptWorkspace::fetch_completion(const int
 	String hint;
 	GDScriptLanguage::get_singleton()->complete_code(p_content, script->get_path().get_base_dir(), base, &completion_strings, forced, hint);
 
-	print_line(">> " + intellisense_word);
-
 	Vector<ScriptCodeCompletionOption> completion_options_casei;
-	Vector<ScriptCodeCompletionOption> completion_options;
 
 	for (int i = 0; i < completion_strings.size(); i++) {
 		if (completion_strings[i].display.find(intellisense_word) != -1) {
@@ -193,8 +211,22 @@ void GDScriptWorkspace::publish_diagnostics(const String &p_path) {
 		}
 	}
 	params["diagnostics"] = errors;
-	params["uri"] = p_path;
+	params["uri"] = get_file_uri(p_path);
 	GDScriptLanguageProtocol::get_singleton()->notify_client("textDocument/publishDiagnostics", params);
+}
+
+void GDScriptWorkspace::completion(const lsp::CompletionParams &p_params, List<ScriptCodeCompletionOption> *r_options) {
+	String path = get_file_path(p_params.textDocument.uri);
+	String call_hint;
+	bool forced = false;
+	if (Map<String, ExtendGDScriptParser *>::Element *E = parse_results.find(path)) {
+		String code = E->get()->get_text_for_completion(p_params.position);
+		GDScriptLanguage::get_singleton()->complete_code(code, path, NULL, r_options, forced, call_hint);
+	}
+}
+
+GDScriptWorkspace::GDScriptWorkspace() {
+	ProjectSettings::get_singleton()->get_resource_path();
 }
 
 GDScriptWorkspace::~GDScriptWorkspace() {

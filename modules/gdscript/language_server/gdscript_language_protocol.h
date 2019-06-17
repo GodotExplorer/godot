@@ -1,3 +1,33 @@
+/*************************************************************************/
+/*  gdscript_language_protocol.h                                         */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #ifndef GDSCRIPT_PROTOCAL_SERVER_H
 #define GDSCRIPT_PROTOCAL_SERVER_H
 
@@ -25,17 +55,17 @@ class GDScriptLanguageProtocol : public JSONRPC {
 	GDScriptTextDocument text_document;
 	GDScriptWorkspace workspace;
 
-	void on_data_received(int id);
-	void on_client_connected(int id, const String &protocal);
-	void on_client_disconnected(int id, bool was_clean_close);
+	void on_data_received(int p_id);
+	void on_client_connected(int p_id, const String &p_protocal);
+	void on_client_disconnected(int p_id, bool p_was_clean_close);
 
-	String process_message(const String &text);
-	String format_output(const String &text);
+	String process_message(const String &p_text);
+	String format_output(const String &p_text);
 
 protected:
 	static void _bind_methods();
 
-	Dictionary initialize(const Dictionary &params);
+	Dictionary initialize(const Dictionary &p_params);
 	void initialized(const Variant &p_params);
 
 public:
@@ -43,7 +73,7 @@ public:
 	_FORCE_INLINE_ GDScriptWorkspace &get_workspace() { return workspace; }
 
 	void poll();
-	Error start(int port);
+	Error start(int p_port);
 	void stop();
 
 	void notify_all_clients(const String &p_method, const Variant &p_params = Variant());
