@@ -82,7 +82,7 @@ Error GDScriptWorkspace::parse_script(const String &p_path, const String &p_cont
 
 	active_file_path = p_path;
 	active_content = p_content;
-
+  
 	Map<String, ExtendGDScriptParser *>::Element *last_parser = parse_results.find(p_path);
 	Map<String, ExtendGDScriptParser *>::Element *last_script = scripts.find(p_path);
 

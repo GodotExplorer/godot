@@ -128,6 +128,10 @@ class ScriptTextEditor : public ScriptEditorBase {
 		SEARCH_LOCATE_FUNCTION,
 		SEARCH_GOTO_LINE,
 		SEARCH_IN_FILES,
+		BOOKMARK_TOGGLE,
+		BOOKMARK_GOTO_NEXT,
+		BOOKMARK_GOTO_PREV,
+		BOOKMARK_REMOVE_ALL,
 		DEBUG_TOGGLE_BREAKPOINT,
 		DEBUG_REMOVE_ALL_BREAKPOINTS,
 		DEBUG_GOTO_NEXT_BREAKPOINT,
@@ -192,6 +196,7 @@ public:
 	virtual void set_edit_state(const Variant &p_state);
 	virtual void ensure_focus();
 	virtual void trim_trailing_whitespace();
+	virtual void insert_final_newline();
 	virtual void convert_indent_to_spaces();
 	virtual void convert_indent_to_tabs();
 	virtual void tag_saved_version();

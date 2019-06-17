@@ -45,7 +45,7 @@ void CSGBrush::build_from_faces(const PoolVector<Vector3> &p_vertices, const Poo
 
 	int vc = p_vertices.size();
 
-	ERR_FAIL_COND((vc % 3) != 0)
+	ERR_FAIL_COND((vc % 3) != 0);
 
 	PoolVector<Vector3>::Read rv = p_vertices.read();
 	int uvc = p_uvs.size();
@@ -611,7 +611,7 @@ void CSGBrushOperation::_add_poly_points(const BuildPoly &p_poly, int p_edge, in
 
 	{
 		EdgeSort es;
-		es.angle = 0; //wont be checked here
+		es.angle = 0; //won't be checked here
 		es.edge = p_edge;
 		es.prev_point = p_from_point;
 		es.edge_point = p_to_point;

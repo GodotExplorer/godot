@@ -26,7 +26,7 @@ comments.
 ## bullet
 
 - Upstream: https://github.com/bulletphysics/bullet3
-- Version: 2.88
+- Version: git (5ec8339, 2019)
 - License: zlib
 
 Files extracted from upstream source:
@@ -346,7 +346,7 @@ Collection of single-file libraries used in Godot components.
   * License: Public Domain
  - `clipper.{cpp,hpp}`
   * Upstream: https://sourceforge.net/projects/polyclipping
-  * Version: 6.4.2
+  * Version: 6.4.2 + Godot changes (added optional exceptions handling)
   * License: BSL-1.0
 - `fastlz.{c,h}`
   * Upstream: https://github.com/ariya/FastLZ

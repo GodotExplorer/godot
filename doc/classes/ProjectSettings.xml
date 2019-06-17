@@ -180,6 +180,8 @@
 		<member name="application/config/icon" type="String" setter="" getter="">
 			Icon used for the project, set when project loads. Exporters will also use this icon when possible.
 		</member>
+		<member name="application/config/macos_native_icon" type="String" setter="" getter="">
+		</member>
 		<member name="application/config/name" type="String" setter="" getter="">
 			The project's name. It is used both by the Project Manager and by exporters. The project name can be translated by translating its value in localization files.
 		</member>
@@ -188,6 +190,8 @@
 		</member>
 		<member name="application/config/use_custom_user_dir" type="bool" setter="" getter="">
 			If [code]true[/code], the project will save user data to its own user directory (see [member application/config/custom_user_dir_name]). This setting is only effective on desktop platforms. A name must be set in the [member application/config/custom_user_dir_name] setting for this to take effect. If [code]false[/code], the project will save user data to [code](OS user data directory)/Godot/app_userdata/(project name)[/code].
+		</member>
+		<member name="application/config/windows_native_icon" type="String" setter="" getter="">
 		</member>
 		<member name="application/run/disable_stderr" type="bool" setter="" getter="">
 			If [code]true[/code], disables printing to standard error in an exported build.
@@ -281,7 +285,7 @@
 			If [code]true[/code], enables warnings when using a property as if it was a function.
 		</member>
 		<member name="debug/gdscript/warnings/return_value_discarded" type="bool" setter="" getter="">
-			If [code]true[/code], enables warnings when calling a function without using its return value (by assigning it to a variable or using it as a function argument). Such return values are sometimes used to denote possible errors using the [Error] type.
+			If [code]true[/code], enables warnings when calling a function without using its return value (by assigning it to a variable or using it as a function argument). Such return values are sometimes used to denote possible errors using the [enum Error] enum.
 		</member>
 		<member name="debug/gdscript/warnings/shadowed_variable" type="bool" setter="" getter="">
 			If [code]true[/code], enables warnings when defining a local or subclass member variable that would shadow a variable at an upper level (such as a member variable).
@@ -370,11 +374,10 @@
 			Default orientation on mobile devices.
 		</member>
 		<member name="display/window/per_pixel_transparency/allowed" type="bool" setter="" getter="">
-			If [code]true[/code], allows per-pixel transparency in a desktop window. This affects performance if not needed, so leave it on [code]false[/code] unless you need it.
+			If [code]true[/code], allows per-pixel transparency in a desktop window. This affects performance, so leave it on [code]false[/code] unless you need it.
 		</member>
 		<member name="display/window/per_pixel_transparency/enabled" type="bool" setter="" getter="">
-		</member>
-		<member name="display/window/per_pixel_transparency/splash" type="bool" setter="" getter="">
+			Set the window background to transparent when it starts.
 		</member>
 		<member name="display/window/size/always_on_top" type="bool" setter="" getter="">
 			Force the window to be always on top.
@@ -405,6 +408,8 @@
 		</member>
 		<member name="editor/active" type="bool" setter="" getter="">
 			Internal editor setting, don't touch.
+		</member>
+		<member name="editor/search_in_file_extensions" type="PoolStringArray" setter="" getter="">
 		</member>
 		<member name="gui/common/default_scroll_deadzone" type="int" setter="" getter="">
 		</member>
@@ -717,7 +722,7 @@
 			Shaders have a time variable that constantly increases. At some point, it needs to be rolled back to zero to avoid precision errors on shader animations. This setting specifies when (in seconds).
 		</member>
 		<member name="rendering/quality/2d/gles2_use_nvidia_rect_flicker_workaround" type="bool" setter="" getter="">
-			Some NVIDIA GPU drivers have a bug which produces flickering issues for the [code]draw_rect[/code] method, especially as used in [TileMap]. Refer to [url]https://github.com/godotengine/godot/issues/9913[/url] for details.
+			Some NVIDIA GPU drivers have a bug which produces flickering issues for the [code]draw_rect[/code] method, especially as used in [TileMap]. Refer to [url=https://github.com/godotengine/godot/issues/9913]GitHub issue 9913[/url] for details.
 			If [code]true[/code], this option enables a "safe" code path for such NVIDIA GPUs at the cost of performance. This option only impacts the GLES2 rendering backend (so the bug stays if you use GLES3), and only desktop platforms.
 		</member>
 		<member name="rendering/quality/2d/use_pixel_snap" type="bool" setter="" getter="">

@@ -94,6 +94,7 @@ struct Vector3 {
 	_FORCE_INLINE_ Vector3 slerp(const Vector3 &p_b, real_t p_t) const;
 	Vector3 cubic_interpolate(const Vector3 &p_b, const Vector3 &p_pre_a, const Vector3 &p_post_b, real_t p_t) const;
 	Vector3 cubic_interpolaten(const Vector3 &p_b, const Vector3 &p_pre_a, const Vector3 &p_post_b, real_t p_t) const;
+	Vector3 move_toward(const Vector3 &p_to, const real_t p_delta) const;
 
 	_FORCE_INLINE_ Vector3 cross(const Vector3 &p_b) const;
 	_FORCE_INLINE_ real_t dot(const Vector3 &p_b) const;
@@ -223,7 +224,7 @@ Vector3 Vector3::slerp(const Vector3 &p_b, real_t p_t) const {
 #endif
 
 	real_t theta = angle_to(p_b);
-	return rotated(cross(p_b), theta * p_t);
+	return rotated(cross(p_b).normalized(), theta * p_t);
 }
 
 real_t Vector3::distance_to(const Vector3 &p_b) const {

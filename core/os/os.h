@@ -104,7 +104,6 @@ public:
 		bool maximized;
 		bool always_on_top;
 		bool use_vsync;
-		bool layered_splash;
 		bool layered;
 		float get_aspect() const { return (float)width / (float)height; }
 		VideoMode(int p_width = 1024, int p_height = 600, bool p_fullscreen = false, bool p_resizable = true, bool p_borderless_window = false, bool p_maximized = false, bool p_always_on_top = false, bool p_use_vsync = false) {
@@ -117,7 +116,6 @@ public:
 			always_on_top = p_always_on_top;
 			use_vsync = p_use_vsync;
 			layered = false;
-			layered_splash = false;
 		}
 	};
 
@@ -273,7 +271,7 @@ public:
 	virtual String get_environment(const String &p_var) const = 0;
 	virtual bool set_environment(const String &p_var, const String &p_value) const = 0;
 
-	virtual String get_name() = 0;
+	virtual String get_name() const = 0;
 	virtual List<String> get_cmdline_args() const { return _cmdline; }
 	virtual String get_model_name() const;
 
@@ -451,6 +449,7 @@ public:
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
 
+	virtual void set_native_icon(const String &p_filename);
 	virtual void set_icon(const Ref<Image> &p_icon);
 
 	virtual int get_exit_code() const;

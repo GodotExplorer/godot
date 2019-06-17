@@ -195,6 +195,7 @@ protected:
 
 public:
 	void trim_trailing_whitespace();
+	void insert_final_newline();
 
 	void convert_indent_to_spaces();
 	void convert_indent_to_tabs();
@@ -233,6 +234,11 @@ public:
 	FindReplaceBar *get_find_replace_bar() { return find_replace_bar; }
 	virtual void apply_code() {}
 	void goto_error();
+
+	void toggle_bookmark();
+	void goto_next_bookmark();
+	void goto_prev_bookmark();
+	void remove_all_bookmarks();
 
 	void set_code_complete_func(CodeTextEditorCodeCompleteFunc p_code_complete_func, void *p_ud);
 
