@@ -1008,6 +1008,29 @@ struct CompletionList {
 };
 
 /**
+ * The result of a hover request
+ */
+struct Hover {
+	/**
+	 * The hover's content
+	 */
+	String contents;
+
+	/**
+	 * An optional range is a range inside a text document
+	 * that is used to visualize a hover, e.g. by changing the background color.
+	 */
+	Range range;
+
+	Dictionary to_json() const {
+		Dictionary dict;
+		dict["contents"] = contents;
+		dict["range"] = range.to_json();
+		return dict;
+	}
+};
+
+/**
  * Enum of known range kinds
  */
 namespace FoldingRangeKind {

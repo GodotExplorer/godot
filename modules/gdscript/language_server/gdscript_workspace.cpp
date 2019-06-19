@@ -82,7 +82,7 @@ Error GDScriptWorkspace::parse_script(const String &p_path, const String &p_cont
 
 	active_file_path = p_path;
 	active_content = p_content;
-  
+
 	Map<String, ExtendGDScriptParser *>::Element *last_parser = parse_results.find(p_path);
 	Map<String, ExtendGDScriptParser *>::Element *last_script = scripts.find(p_path);
 
@@ -102,36 +102,6 @@ Error GDScriptWorkspace::parse_script(const String &p_path, const String &p_cont
 	return err;
 }
 
-String GDScriptWorkspace::add_cursor_to_script(String &p_content, const int &p_cur_line, const int &p_cur_char) {
-	int index_counter = 0;
-	int line_counter = 0;
-	int line_beginning_counter = 0;
-	int char_counter = 0;
-	CharType cursor = 0xFFFF;
-
-	while (index_counter < p_content.size()) {
-		index_counter++;
-
-		if (p_content[index_counter] == '\n') {
-			line_counter++;
-			char_counter = 0;
-			line_beginning_counter = index_counter;
-		} else {
-			if (p_content[index_counter] == ' ') {
-				line_beginning_counter = index_counter + 1;
-			}
-			char_counter++;
-		}
-
-		if (line_counter == p_cur_line && char_counter == p_cur_char) {
-			p_content = p_content.insert(index_counter + 1, String(&cursor));
-			break;
-		}
-	}
-
-	return p_content.substr(line_beginning_counter, index_counter - line_beginning_counter + 1);
-}
-
 String GDScriptWorkspace::get_file_path(const String &p_uri) const {
 	String path = p_uri.replace("file://", "").http_unescape();
 	path = path.replace(root + "/", "res://");
@@ -143,30 +113,22 @@ String GDScriptWorkspace::get_file_uri(const String &p_path) const {
 	return "file://" + path;
 }
 
-Vector<ScriptCodeCompletionOption> GDScriptWorkspace::fetch_completion(const int &p_cur_line, const int &p_cur_char) {
-	Node *base = EditorNode::get_singleton()->get_tree()->get_edited_scene_root();
-	Vector<ScriptCodeCompletionOption> completion_options;
+Vector<ScriptCodeCompletionOption> GDScriptWorkspace::completion(const int &p_cur_line, const int &p_cur_char) {
 
-	String p_content = active_content;
+	Vector<ScriptCodeCompletionOption> completion_options;
 	if (!active_file_path.is_abs_path()) {
 		return completion_options;
 	}
-	String relative_path = get_file_path(active_file_path);
-
-	RES script = ResourceLoader::load(relative_path);
-	if (script == NULL) {
-		return completion_options;
-	}
-	if (base) {
-		base = ScriptTextEditor::_find_node_for_script(base, base, script);
-	}
-
-	String intellisense_word = add_cursor_to_script(p_content, p_cur_line, p_cur_char);
+	String path = get_file_path(active_file_path);
+	String intellisense_word;
 
 	bool forced = false;
 	List<ScriptCodeCompletionOption> completion_strings;
 	String hint;
-	GDScriptLanguage::get_singleton()->complete_code(p_content, script->get_path().get_base_dir(), base, &completion_strings, forced, hint);
+	if (Map<String, ExtendGDScriptParser *>::Element *E = parse_results.find(path)) {
+		String code = E->get()->get_text_for_completion(p_cur_line, p_cur_char, intellisense_word);
+		GDScriptLanguage::get_singleton()->complete_code(code, path, NULL, &completion_strings, forced, hint);
+	}
 
 	Vector<ScriptCodeCompletionOption> completion_options_casei;
 
@@ -213,16 +175,6 @@ void GDScriptWorkspace::publish_diagnostics(const String &p_path) {
 	params["diagnostics"] = errors;
 	params["uri"] = get_file_uri(p_path);
 	GDScriptLanguageProtocol::get_singleton()->notify_client("textDocument/publishDiagnostics", params);
-}
-
-void GDScriptWorkspace::completion(const lsp::CompletionParams &p_params, List<ScriptCodeCompletionOption> *r_options) {
-	String path = get_file_path(p_params.textDocument.uri);
-	String call_hint;
-	bool forced = false;
-	if (Map<String, ExtendGDScriptParser *>::Element *E = parse_results.find(path)) {
-		String code = E->get()->get_text_for_completion(p_params.position);
-		GDScriptLanguage::get_singleton()->complete_code(code, path, NULL, r_options, forced, call_hint);
-	}
 }
 
 GDScriptWorkspace::GDScriptWorkspace() {

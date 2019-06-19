@@ -56,7 +56,7 @@ public:
 	_FORCE_INLINE_ const lsp::DocumentSymbol &get_symbols() const { return class_symbol; }
 	_FORCE_INLINE_ const Vector<lsp::Diagnostic> &get_diagnostics() const { return diagnostics; }
 
-	String get_text_for_completion(const lsp::Position &p_cursor);
+	String get_text_for_completion(const int p_line, const int p_char, String &intellisense_word);
 
 	Error parse(const String &p_code, const String &p_path);
 };

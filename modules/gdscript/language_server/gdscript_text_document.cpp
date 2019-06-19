@@ -65,7 +65,6 @@ lsp::TextDocumentItem GDScriptTextDocument::load_document_item(const Variant &p_
 	lsp::TextDocumentItem doc;
 	Dictionary params = p_param;
 	doc.load(params["textDocument"]);
-	print_line(doc.text);
 	return doc;
 }
 
@@ -90,7 +89,7 @@ Dictionary GDScriptTextDocument::completion(const Dictionary &p_params) {
 	int cur_line = params["line"];
 	int cur_char = params["character"];
 
-	Vector<ScriptCodeCompletionOption> options = GDScriptLanguageProtocol::get_singleton()->get_workspace().fetch_completion(cur_line, cur_char);
+	Vector<ScriptCodeCompletionOption> options = GDScriptLanguageProtocol::get_singleton()->get_workspace().completion(cur_line, cur_char);
 
 	const int MAX_COMPLETION_LIMIT = 200;
 	lsp::CompletionList completion_list;

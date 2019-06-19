@@ -50,9 +50,6 @@ private:
 	String active_content;
 	String active_file_path;
 
-private:
-	String add_cursor_to_script(String &p_content, const int &p_cur_line, const int &p_cur_char);
-
 public:
 	String root;
 	Map<String, ExtendGDScriptParser *> scripts;
@@ -63,11 +60,10 @@ public:
 
 public:
 	Error parse_script(const String &p_path, const String &p_content);
-	Vector<ScriptCodeCompletionOption> fetch_completion(const int &p_cur_line, const int &p_cur_char);
+	Vector<ScriptCodeCompletionOption> completion(const int &p_cur_line, const int &p_cur_char);
 	String get_file_path(const String &p_uri) const;
 	String get_file_uri(const String &p_path) const;
 	void publish_diagnostics(const String &p_path);
-	void completion(const lsp::CompletionParams &p_params, List<ScriptCodeCompletionOption> *r_options);
 
 	GDScriptWorkspace();
 	~GDScriptWorkspace();
