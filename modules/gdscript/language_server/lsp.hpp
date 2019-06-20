@@ -1018,6 +1018,20 @@ struct CompletionList {
 	 * The completion items.
 	 */
 	Vector<CompletionItem> items;
+
+	Dictionary to_json() const {
+		Dictionary dict;
+		dict["isIncomplete"] = isIncomplete;
+		if (!items.empty()) {
+			Array arr;
+			arr.resize(items.size());
+			for (int i = 0; i < items.size(); i++) {
+				arr[i] = items[i].to_json();
+			}
+			dict["items"] = arr;
+		}
+		return dict;
+	}
 };
 
 /**

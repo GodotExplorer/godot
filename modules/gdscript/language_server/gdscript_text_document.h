@@ -34,6 +34,11 @@
 #include "core/reference.h"
 #include "lsp.hpp"
 
+#define min(a, b) \
+	({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
 class GDScriptTextDocument : public Reference {
 	GDCLASS(GDScriptTextDocument, Reference)
 protected:
@@ -49,7 +54,7 @@ private:
 
 public:
 	Array documentSymbol(const Dictionary &p_params);
-	Array completion(const Dictionary &p_params);
+	Dictionary completion(const Dictionary &p_params);
 	Array foldingRange(const Dictionary &p_params);
 	Array codeLens(const Dictionary &p_params);
 	Variant documentLink(const Dictionary &p_params);

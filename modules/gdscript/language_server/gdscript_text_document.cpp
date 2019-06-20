@@ -65,7 +65,6 @@ lsp::TextDocumentItem GDScriptTextDocument::load_document_item(const Variant &p_
 	lsp::TextDocumentItem doc;
 	Dictionary params = p_param;
 	doc.load(params["textDocument"]);
-	print_line(doc.text);
 	return doc;
 }
 
@@ -84,28 +83,22 @@ Array GDScriptTextDocument::documentSymbol(const Dictionary &p_params) {
 	return arr;
 }
 
-Array GDScriptTextDocument::completion(const Dictionary &p_params) {
-	Array arr;
+Dictionary GDScriptTextDocument::completion(const Dictionary &p_params) {
 
-	lsp::CompletionParams params;
-	params.load(p_params);
-	Dictionary request_data = params.to_json();
+	Dictionary params = p_params["position"];
+	int cur_line = params["line"];
+	int cur_char = params["character"];
 
-	List<ScriptCodeCompletionOption> options;
-	GDScriptLanguageProtocol::get_singleton()->get_workspace().completion(params, &options);
+	Vector<ScriptCodeCompletionOption> options;
+	GDScriptLanguageProtocol::get_singleton()->get_workspace().completion(cur_line, cur_char, options);
 
-	for (const List<ScriptCodeCompletionOption>::Element *E = options.front(); E; E = E->next()) {
-		const ScriptCodeCompletionOption &option = E->get();
+	const int MAX_COMPLETION_LIMIT = 200;
+	lsp::CompletionList completion_list;
+	completion_list.isIncomplete = (options.size() > 1);
+	for (int i = 0; i < min(options.size(), MAX_COMPLETION_LIMIT); i++) {
 		lsp::CompletionItem item;
-		item.label = option.display;
-		item.insertText = option.insert_text;
-		item.data = request_data;
-
-		if (params.context.triggerKind == lsp::CompletionTriggerKind::TriggerCharacter && (params.context.triggerCharacter == "'" || params.context.triggerCharacter == "\"") && (option.insert_text.begins_with("'") || option.insert_text.begins_with("\""))) {
-			item.insertText = option.insert_text.substr(1, option.insert_text.length() - 2);
-		}
-
-		switch (option.kind) {
+		item.label = options[i].display;
+		switch (options[i].kind) {
 			case ScriptCodeCompletionOption::KIND_ENUM:
 				item.kind = lsp::CompletionItemKind::Enum;
 				break;
@@ -137,11 +130,10 @@ Array GDScriptTextDocument::completion(const Dictionary &p_params) {
 				item.kind = lsp::CompletionItemKind::Text;
 				break;
 		}
-
-		arr.push_back(item.to_json());
+		completion_list.items.push_back(item);
 	}
 
-	return arr;
+	return completion_list.to_json();
 }
 
 Array GDScriptTextDocument::foldingRange(const Dictionary &p_params) {

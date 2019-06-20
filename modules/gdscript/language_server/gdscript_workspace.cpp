@@ -79,6 +79,10 @@ Array GDScriptWorkspace::symbol(const Dictionary &p_params) {
 Error GDScriptWorkspace::parse_script(const String &p_path, const String &p_content) {
 	ExtendGDScriptParser *parser = memnew(ExtendGDScriptParser);
 	Error err = parser->parse(p_content, p_path);
+
+	active_file_path = p_path;
+	active_content = p_content;
+
 	Map<String, ExtendGDScriptParser *>::Element *last_parser = parse_results.find(p_path);
 	Map<String, ExtendGDScriptParser *>::Element *last_script = scripts.find(p_path);
 
@@ -109,6 +113,51 @@ String GDScriptWorkspace::get_file_uri(const String &p_path) const {
 	return "file://" + path;
 }
 
+void GDScriptWorkspace::completion(const int &p_cur_line, const int &p_cur_char, Vector<ScriptCodeCompletionOption> &completion_options) {
+
+	if (!active_file_path.is_abs_path()) {
+		return;
+	}
+	String path = get_file_path(active_file_path);
+	String intellisense_word;
+
+	bool forced = false;
+	List<ScriptCodeCompletionOption> completion_strings;
+	String hint;
+	if (Map<String, ExtendGDScriptParser *>::Element *E = parse_results.find(path)) {
+		String code = E->get()->get_text_for_completion(p_cur_line, p_cur_char, intellisense_word);
+		GDScriptLanguage::get_singleton()->complete_code(code, path, NULL, &completion_strings, forced, hint);
+	}
+
+	Vector<ScriptCodeCompletionOption> completion_options_casei;
+
+	for (int i = 0; i < completion_strings.size(); i++) {
+		if (completion_strings[i].display.find(intellisense_word) != -1) {
+			completion_options.push_back(completion_strings[i]);
+		} else if (completion_strings[i].display.to_lower().find(intellisense_word.to_lower()) != -1) {
+			completion_options_casei.push_back(completion_strings[i]);
+		}
+	}
+
+	completion_options.append_array(completion_options_casei);
+
+	if (completion_options.size() == 0) {
+		for (int i = 0; i < completion_strings.size(); i++) {
+			if (intellisense_word.is_subsequence_of(completion_strings[i].display)) {
+				completion_options.push_back(completion_strings[i]);
+			}
+		}
+	}
+
+	if (completion_options.size() == 0) {
+		for (int i = 0; i < completion_strings.size(); i++) {
+			if (intellisense_word.is_subsequence_ofi(completion_strings[i].display)) {
+				completion_options.push_back(completion_strings[i]);
+			}
+		}
+	}
+}
+
 void GDScriptWorkspace::publish_diagnostics(const String &p_path) {
 	Dictionary params;
 	Array errors;
@@ -123,16 +172,6 @@ void GDScriptWorkspace::publish_diagnostics(const String &p_path) {
 	params["diagnostics"] = errors;
 	params["uri"] = get_file_uri(p_path);
 	GDScriptLanguageProtocol::get_singleton()->notify_client("textDocument/publishDiagnostics", params);
-}
-
-void GDScriptWorkspace::completion(const lsp::CompletionParams &p_params, List<ScriptCodeCompletionOption> *r_options) {
-	String path = get_file_path(p_params.textDocument.uri);
-	String call_hint;
-	bool forced = false;
-	if (Map<String, ExtendGDScriptParser *>::Element *E = parse_results.find(path)) {
-		String code = E->get()->get_text_for_completion(p_params.position);
-		GDScriptLanguage::get_singleton()->complete_code(code, path, NULL, r_options, forced, call_hint);
-	}
 }
 
 GDScriptWorkspace::GDScriptWorkspace() {

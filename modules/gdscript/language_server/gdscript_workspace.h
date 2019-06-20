@@ -43,6 +43,10 @@ protected:
 	static void _bind_methods();
 	void remove_cache_parser(const String &p_path);
 
+private:
+	String active_content;
+	String active_file_path;
+
 public:
 	String root;
 	Map<String, ExtendGDScriptParser *> scripts;
@@ -56,7 +60,7 @@ public:
 	String get_file_path(const String &p_uri) const;
 	String get_file_uri(const String &p_path) const;
 	void publish_diagnostics(const String &p_path);
-	void completion(const lsp::CompletionParams &p_params, List<ScriptCodeCompletionOption> *r_options);
+	void completion(const int &p_cur_line, const int &p_cur_char, Vector<ScriptCodeCompletionOption> &completion_options);
 
 	GDScriptWorkspace();
 	~GDScriptWorkspace();
