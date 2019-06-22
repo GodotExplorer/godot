@@ -693,6 +693,18 @@ struct SymbolInformation {
 	}
 };
 
+struct DocumentedSymbolInformation : public SymbolInformation {
+	/**
+	 * A human-readable string with additional information
+	 */
+	String detail;
+
+	/**
+	 * A human-readable string that represents a doc-comment.
+	 */
+	String documentation;
+};
+
 /**
  * Represents programming constructs like variables, classes, interfaces etc. that appear in a document. Document symbols can be
  * hierarchical and they have two ranges: one that encloses its definition and one that points to its most interesting range,
@@ -710,6 +722,11 @@ struct DocumentSymbol {
 	 * More detail for this symbol, e.g the signature of a function.
 	 */
 	String detail;
+
+	/**
+	 * Documentation for this symbol
+	 */
+	String documentation;
 
 	/**
 	 * The kind of this symbol.
@@ -734,6 +751,8 @@ struct DocumentSymbol {
 	 */
 	Range selectionRange;
 
+	DocumentUri uri;
+
 	/**
 	 * Children of this symbol, e.g. properties of a class.
 	 */
@@ -756,17 +775,23 @@ struct DocumentSymbol {
 		return dict;
 	}
 
-	void symbol_tree_as_list(const String &p_uri, Vector<SymbolInformation> &r_list, const String &p_container = "") const {
-		SymbolInformation si;
-		si.name = name;
+	void symbol_tree_as_list(const String &p_uri, Vector<DocumentedSymbolInformation> &r_list, const String &p_container = "", bool p_join_name = false) const {
+		DocumentedSymbolInformation si;
+		if (p_join_name && !p_container.empty()) {
+			si.name = p_container + ">" + name;
+		} else {
+			si.name = name;
+		}
 		si.kind = kind;
 		si.containerName = p_container;
 		si.deprecated = deprecated;
 		si.location.uri = p_uri;
 		si.location.range = range;
+		si.detail = detail;
+		si.documentation = documentation;
 		r_list.push_back(si);
 		for (int i = 0; i < children.size(); i++) {
-			children[i].symbol_tree_as_list(p_uri, r_list, name);
+			children[i].symbol_tree_as_list(p_uri, r_list, si.name, p_join_name);
 		}
 	}
 };
@@ -815,6 +840,70 @@ struct Command {
 		dict["title"] = title;
 		dict["command"] = command;
 		if (arguments.size()) dict["arguments"] = arguments;
+		return dict;
+	}
+};
+
+/**
+ * Describes the content type that a client supports in various
+ * result literals like `Hover`, `ParameterInfo` or `CompletionItem`.
+ *
+ * Please note that `MarkupKinds` must not start with a `$`. This kinds
+ * are reserved for internal usage.
+ */
+namespace MarkupKind {
+static const String PlainText = "plaintext";
+static const String Markdown = "markdown";
+}; // namespace MarkupKind
+
+/**
+ * A `MarkupContent` literal represents a string value which content is interpreted base on its
+ * kind flag. Currently the protocol supports `plaintext` and `markdown` as markup kinds.
+ *
+ * If the kind is `markdown` then the value can contain fenced code blocks like in GitHub issues.
+ * See https://help.github.com/articles/creating-and-highlighting-code-blocks/#syntax-highlighting
+ *
+ * Here is an example how such a string can be constructed using JavaScript / TypeScript:
+ * ```typescript
+ * let markdown: MarkdownContent = {
+ *  kind: MarkupKind.Markdown,
+ *	value: [
+ *		'# Header',
+ *		'Some text',
+ *		'```typescript',
+ *		'someCode();',
+ *		'```'
+ *	].join('\n')
+ * };
+ * ```
+ *
+ * *Please Note* that clients might sanitize the return markdown. A client could decide to
+ * remove HTML from the markdown to avoid script execution.
+ */
+struct MarkupContent {
+	/**
+	 * The type of the Markup
+	 */
+	String kind;
+
+	/**
+	 * The content itself
+	 */
+	String value;
+
+	MarkupContent() {
+		kind = MarkupKind::Markdown;
+	}
+
+	MarkupContent(const String &p_value) {
+		value = p_value;
+		kind = MarkupKind::Markdown;
+	}
+
+	Dictionary to_json() const {
+		Dictionary dict;
+		dict["kind"] = kind;
+		dict["value"] = value;
 		return dict;
 	}
 };
@@ -895,7 +984,7 @@ struct CompletionItem {
 	/**
 	 * A human-readable string that represents a doc-comment.
 	 */
-	String documentation;
+	MarkupContent documentation;
 
 	/**
 	 * Indicates if this item is deprecated.
@@ -988,9 +1077,8 @@ struct CompletionItem {
 		Dictionary dict;
 		dict["label"] = label;
 		dict["kind"] = kind;
-		dict["kind"] = kind;
 		dict["detail"] = detail;
-		dict["documentation"] = documentation;
+		dict["documentation"] = documentation.to_json();
 		dict["deprecated"] = deprecated;
 		dict["preselect"] = preselect;
 		dict["sortText"] = sortText;
@@ -1000,6 +1088,27 @@ struct CompletionItem {
 		dict["command"] = command.to_json();
 		dict["data"] = data;
 		return dict;
+	}
+
+	void load(const Dictionary &p_dict) {
+		if (p_dict.has("label")) label = p_dict["label"];
+		if (p_dict.has("kind")) kind = p_dict["kind"];
+		if (p_dict.has("detail")) detail = p_dict["detail"];
+		if (p_dict.has("documentation")) {
+			Variant doc = p_dict["documentation"];
+			if (doc.get_type() == Variant::STRING) {
+				documentation.value = doc;
+			} else if (doc.get_type() == Variant::DICTIONARY) {
+				Dictionary v = doc;
+				documentation.value = v["value"];
+			}
+		}
+		if (p_dict.has("deprecated")) deprecated = p_dict["deprecated"];
+		if (p_dict.has("preselect")) preselect = p_dict["preselect"];
+		if (p_dict.has("sortText")) sortText = p_dict["sortText"];
+		if (p_dict.has("filterText")) filterText = p_dict["filterText"];
+		if (p_dict.has("insertText")) insertText = p_dict["insertText"];
+		if (p_dict.has("data")) data = p_dict["data"];
 	}
 };
 
@@ -1137,6 +1246,29 @@ struct CompletionParams : public TextDocumentPositionParams {
 	}
 };
 
+/**
+ * The result of a hover request.
+ */
+struct Hover {
+	/**
+	 * The hover's content
+	 */
+	MarkupContent contents;
+
+	/**
+	 * An optional range is a range inside a text document
+	 * that is used to visualize a hover, e.g. by changing the background color.
+	 */
+	Range range;
+
+	Dictionary to_json() const {
+		Dictionary dict;
+		dict["range"] = range.to_json();
+		dict["contents"] = contents.to_json();
+		return dict;
+	}
+};
+
 struct ServerCapabilities {
 	/**
 	 * Defines how text documents are synced. Is either a detailed structure defining each notification or
@@ -1162,7 +1294,7 @@ struct ServerCapabilities {
 	/**
 	 * The server provides goto definition support.
 	 */
-	bool definitionProvider = false;
+	bool definitionProvider = true;
 
 	/**
 	 * The server provides Goto Type Definition support.
